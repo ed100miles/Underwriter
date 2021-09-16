@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 
 # Import and convert data to df:
-datapath = Path('data/car_insurance_claim.csv')
+datapath = Path('./data/car_insurance_claim.csv')
 data_df = pd.read_csv(datapath)
 
 # Clean Income data:
