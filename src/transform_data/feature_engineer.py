@@ -2,14 +2,14 @@ import pandas as pd
 from clean_data import clean_df
 
 '''
-Create some more data?:
+Potential New Features:
 - Income/bluebook = value of car as % of income
 - MVR / age = more points at young age suggests riskier driver
 - Identify collectable cars using bluebook + age?
 - OLDCLAIM / age = many claim in short time of driving suggest risk?
 '''
 
-# Create new fields:
+# Create new features:
 
 df = clean_df
 
@@ -20,8 +20,9 @@ df['RICH_KIDS*'] = df['INCOME'] / df['AGE']         # -0.112 - FAIR
 df['HOME_PER_BLUE*'] = df['HOME_VAL'] / df['BLUEBOOK'] # - 0.04 - POOR
 df['CLM_PER_MILE*'] = df['CLM_FREQ'] / df['TRAVTIME'] # 0.120 - FAIR
 
-df.info()
+if __name__ == '__main__':
+    df.info()
 
-with open('/Users/Ed/Desktop/new_claim_data.csv', 'w') as file:
-    file.write(df.to_csv())
+    # with open('~/Desktop/new_claim_data.csv', 'w') as file:
+    #     file.write(df.to_csv())
 
