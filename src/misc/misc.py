@@ -1,43 +1,14 @@
-import csv
-import matplotlib.pyplot as plt
-from numpy.lib.function_base import average
-import pandas as pd
-from pathlib import Path
-import numpy as np
+def get_int64_only_df(df):
+    '''Returns new df object comprising of only columns with int64 datatype'''
+    int_columns = []
+    for column in df.columns:
+        if df[column].dtype == int:
+            int_columns.append(column)
+    ints_df = df[int_columns]
+    return ints_df.copy()
 
-# Import and convert data to df:
-datapath = Path('./data/car_insurance_claim.csv')
-data_df = pd.read_csv(datapath)
 
-# Clean Income data:
-def format_income(df):
-    '''removes '$' and ',' from incomes, replaces nans with mean and converts all to int dtype.'''
-    for index, entry in enumerate(df['INCOME']):
-        if type(entry) == str:
-            income = int(entry[1:].replace(',', ''))
-            df.at[index, 'INCOME'] = income
-    for index, entry in enumerate(df['INCOME']):
-        if type(entry) == float:
-            income = int(df['INCOME'].mean())
-            df.at[index, 'INCOME'] = income
-    data_df['INCOME'] = data_df['INCOME'].astype(int)
-    
-format_income(data_df)
 
-def check_types(df, df_index:str):
-    unique_types = set()
-    for entry in df[df_index]:
-        unique_types.add(type(entry))
-    return unique_types
-
-income_data_types = check_types(data_df, 'INCOME')
-
-assert len(income_data_types) == 1 and income_data_types.pop() == int
-# print(data_df['INCOME'].describe())
-
-data_df.sort_values(by=['INCOME'], ascending=False, inplace=True)
-
-x, y = [], []
 
 incomes_and_flags = list(zip(data_df['INCOME'].values, data_df['CLAIM_FLAG'].values))
 
