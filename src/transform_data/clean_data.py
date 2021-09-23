@@ -19,7 +19,6 @@ def make_int64_and_nans_to_mean(df, *args:str):
         df_to_transform[field] = df_to_transform[field].astype('int64')
     return df_to_transform
 
-
 def dollars_to_int64s_and_nans_to_mean(df, *args:str):
     '''removes '$' and ',' from dollar values to convert to int. NANs to mean.'''
     for dollar_field in args:
