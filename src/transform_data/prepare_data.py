@@ -1,9 +1,26 @@
+from typing import List
 import pandas as pd
 import sys
-from sklearn.preprocessing import OrdinalEncoder
+
+from sklearn.preprocessing import OrdinalEncoder, MinMaxScaler
+from sklearn.model_selection import train_test_split
+from imblearn.over_sampling import RandomOverSampler, SMOTENC
+from imblearn.under_sampling import RandomUnderSampler
+
+from sklearn import svm
+from sklearn import tree
+from sklearn.linear_model import SGDClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neural_network import MLPClassifier
+
 
 # Import and convert data to df:
 df = pd.read_csv('./data/car_insurance_claim.csv')
+
 
 # Data cleaining functions:
 
@@ -68,6 +85,20 @@ def drop_features(df: pd.DataFrame, *args: str) -> pd.DataFrame:
     return df
 
 
+def scale_data(df: pd.DataFrame, scale: list) -> pd.DataFrame:
+    scaler = MinMaxScaler()
+    for to_scale in scale:
+        df[to_scale] = scaler.fit_transform([[x] for x in df[to_scale]])
+    return df
+
+def get_cat_indicies(df:pd.DataFrame) -> list:
+    cat_indicies = []
+    for index, feature in enumerate(df.columns):
+        if len(df[feature].unique()) > 2:
+            cat_indicies.append(index)
+    return cat_indicies
+
+
 """
 NOTE: There are 600+ nans in 'OCCUPATION' but all have an income, so not unemployed,
 could be retired but average age doesnt suggest this,
@@ -99,11 +130,35 @@ df['PTS_PER_AGE*'] = df['MVR_PTS'] / df['AGE']      # +0.232 - GREAT!
 df['CLM_PER_AGE*'] = df['CLM_FREQ'] / df['AGE']      # +0.234 - GREAT!
 df['RICH_KIDS*'] = df['INCOME'] / df['AGE']         # -0.112 - FAIR
 # df['HOME_PER_BLUE*'] = df['HOME_VAL'] / df['BLUEBOOK'] # - 0.04 - POOR
-df['CLM_PER_MILE*'] = df['CLM_FREQ'] / df['TRAVTIME'] # 0.120 - FAIR
+df['CLM_PER_MILE*'] = df['CLM_FREQ'] / df['TRAVTIME']  #  0.120 - FAIR
 
-df = features_to_dtype(df, 'PTS_PER_AGE*', 'CLM_PER_AGE*', 'RICH_KIDS*', 'CLM_PER_MILE*')
+df = features_to_dtype(df, 'PTS_PER_AGE*', 'CLM_PER_AGE*',
+                       'RICH_KIDS*', 'CLM_PER_MILE*')
 
 
-if __name__ == '__main__':
-    df.info()
-    pass
+# Scale non-categorical/binary data:
+
+to_scale_list = [column for column in df.columns if len(
+    df[column].unique()) > 2]  # gets non-binary features
+
+df = scale_data(df, to_scale_list)
+
+
+# Split test and training data:
+
+train_set, test_set = train_test_split(df, test_size=0.1, random_state=42)
+train_y, test_y = train_set['CLAIM_FLAG'], test_set['CLAIM_FLAG']
+train_X = train_set.drop(['CLAIM_FLAG'], axis=1)
+test_X = test_set.drop(['CLAIM_FLAG'], axis=1)
+
+# Balance data:
+
+rus = RandomUnderSampler()
+ros = RandomOverSampler()
+# (Re cat features, all are binary, so if only 2 values then they're categorical)
+smotenc = SMOTENC(categorical_features=get_cat_indicies(train_X))
+
+smote_train_X, smote_train_y = smotenc.fit_resample(train_X, train_y)
+os_train_X, os_train_y = ros.fit_resample(train_X, train_y)
+us_train_X, us_train_y = ros.fit_resample(train_X, train_y)
+
