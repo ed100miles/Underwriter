@@ -1,22 +1,38 @@
+
 from numpy import dtype, int64, uint8
 import pandas as pd
-from pathlib import Path
-from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
-from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OrdinalEncoder
 
 # Import and convert data to df:
-datapath = Path('./data/car_insurance_claim.csv')
-df = pd.read_csv(datapath)
+df = pd.read_csv('./data/car_insurance_claim.csv')
 
-# Clean functions:
-
-def make_int64_and_nans_to_mean(df, *args:str):
-    """ Takes df obj and strings of fields to  """
+# Clean data functions:
+def make_int64_and_nans_to_mean(df, *args:str) -> pd.DataFrame:
+    """ Takes dataframe and string/s of features to convert. E.g (my_df, "feature_column1", "feature_column2")
+    Returns new dataframe with Nans converted to the field mean, and all """
     df_to_transform = df
     for field in args:
         df_to_transform[field] = df_to_transform[field].fillna(df_to_transform[field].mean())
         df_to_transform[field] = df_to_transform[field].astype('int64')
     return df_to_transform
+
+def features_to_dtype(df, *args:str, to_type='int64') -> pd.DataFrame:
+    """Converts columns in df to specified dype, default int64. Returns covnerted df."""
+    for field in args:
+        try:
+            df[field] = df[field].astype(to_type)
+        except TypeError as e:
+            print(f'TypeError: {e}')
+            print(f'Cannot convert values of "{df[field].dtype}" type in df[{field}] to {to_type}.')
+        except ValueError as e:
+            print(f'ValueError: {e}')
+            print(f'Cannot convert values of "{df[field].dtype}" type in df[{field}] to {to_type}.')
+    return df
+
+def nans_to_mean(df, *args) -> pd.DataFrame:
+    for field in args:
+        df[field] = df[field].fillna(df[field].mean())
+    return df
 
 def dollars_to_int64s_and_nans_to_mean(df, *args:str):
     '''removes '$' and ',' from dollar values to convert to int. NANs to mean.'''
@@ -33,36 +49,38 @@ def fill_nans_with_mode(df, *args:str):
         df[arg] = df[arg].fillna('Unknown')
     return df
 
+def make_ordinal(df, *args):
+    for arg in args:
+        arr_2d = [[x] for x in df[arg]]
+        df[arg] = enc.fit_transform(arr_2d)
+    return df
 
-clean_df = dollars_to_int64s_and_nans_to_mean(df, 'INCOME', 'HOME_VAL', 'BLUEBOOK', 'OLDCLAIM', 'CLM_AMT')
-clean_df = make_int64_and_nans_to_mean(clean_df, 'AGE', 'CAR_AGE', 'YOJ')
-"""
-There are 600+ nans in 'OCCUPATION' but all have an income so not unemployed,
-could be retired but average age doesnt support this,
-the majority are educated to masters or phd, data shows BlueCollars dont tend to have this level of education
-so not replacing with the mode (blue collar). Decided to create Unknown category. 
-"""
-clean_df['OCCUPATION'] = clean_df['OCCUPATION'].fillna('Unknown')
-
-
-# Drops:
-
-clean_df = clean_df.drop('CLM_AMT', axis=1) # this is a label so will give the game away!
-clean_df = clean_df.drop('BIRTH', axis=1) # 'AGE' covers this feature sufficiently
-clean_df = clean_df.drop('RED_CAR', axis=1) # No correlation between this feature and claims
-clean_df = clean_df.drop('ID', axis=1) # No correlation between this feature and claims
-# clean_df = clean_df.drop('HOME_PER_BLUE*', axis=1) # No correlation between this feature and claims
-
-# clean_df = clean_df.set_index('ID')
-
-# Deal with categorical features:
-'''NOTE:Consider ordinal encoding for Education?'''
-
-#NOTE: This works but messy!:
 def cat_to_1hot(df, *args):
     for arg in args:
         df = pd.get_dummies(df, columns = [arg])
     return df
+
+clean_df = dollars_to_int64s_and_nans_to_mean(df, 'INCOME', 'HOME_VAL', 'BLUEBOOK', 'OLDCLAIM', 'CLM_AMT')
+clean_df = make_int64_and_nans_to_mean(clean_df, 'AGE', 'CAR_AGE', 'YOJ')
+
+"""
+NOTE: There are 600+ nans in 'OCCUPATION' but all have an income, so not unemployed,
+could be retired but average age doesnt suggest this,
+the majority are educated to masters or phd, data shows BlueCollars dont tend to have this level of education
+so not replacing with the mode (blue collar). Decided to create 'Unknown' category.
+"""
+clean_df['OCCUPATION'] = clean_df['OCCUPATION'].fillna('Unknown')
+
+# Drop unnecessary / unhelpful features:
+clean_df = clean_df.drop('CLM_AMT', axis=1) # this is a label so will give the game away!
+clean_df = clean_df.drop('BIRTH', axis=1) # 'AGE' covers this feature sufficiently
+clean_df = clean_df.drop('RED_CAR', axis=1) # No correlation between this feature and claims
+clean_df = clean_df.drop('ID', axis=1) # No correlation between this feature and claims
+
+# Deal with categorical features:
+
+#NOTE: This works but messy!:
+
 
 clean_df = cat_to_1hot( clean_df,
                     'EDUCATION', 
@@ -72,11 +90,7 @@ clean_df = cat_to_1hot( clean_df,
 
 enc = OrdinalEncoder(dtype=uint8)
 
-def make_ordinal(df, *args):
-    for arg in args:
-        arr_2d = [[x] for x in df[arg]]
-        df[arg] = enc.fit_transform(arr_2d)
-    return df
+
 
 clean_df = make_ordinal(clean_df, 'GENDER', 'PARENT1', 'MSTATUS', 'REVOKED', 'URBANICITY')
 
@@ -117,11 +131,6 @@ clean_df = make_ordinal(clean_df, 'GENDER', 'PARENT1', 'MSTATUS', 'REVOKED', 'UR
 
 if __name__ == '__main__':
     clean_df.info( )
-    # print(clean_df['OCCUPATION'].head(5))
-    # print(clean_df['OCCUPATION'].unique())
-    # print(clean_df['OCCUPATION'].head())
-    # print(clean_df.head())
-    # print(clean_df['URBANICITY'].unique())
     pass
 
 
@@ -133,6 +142,8 @@ if __name__ == '__main__':
 '''
 Some ages missing but entries have year of birth. Dataset appears to be from 1999 so calculating age off that.
 '''
+
+
 
 # age_nan_df = df[ df['AGE'].isnull()]
 

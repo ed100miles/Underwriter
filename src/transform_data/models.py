@@ -1,7 +1,7 @@
 from numpy import dtype
 import pandas as pd
-from sklearn.utils.validation import check_array
-from feature_engineer import df
+from prepare_data import df
+
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.utils import shuffle
@@ -23,30 +23,31 @@ from sklearn.neural_network import MLPClassifier
 
 scaler = MinMaxScaler()
 
+
 def log_it(str):
     with open('log.txt', 'a') as log:
         log.write(str)
 
-def scale_data(df, scale:list):
+
+def scale_data(df, scale: list):
     for to_scale in scale:
         df[to_scale] = scaler.fit_transform([[x] for x in df[to_scale]])
     return df
 
-to_scale_list = [x for x in df.columns if df[x].dtype == 'float64' 
-                or df[x].dtype == 'int64']
+
+to_scale_list = [column for column in df.columns if len(
+    df[column].unique()) > 2] # gets non-binary features
+
+
+
 
 df = scale_data(df, to_scale_list)
 
-# print(df['INCOME'].head())
-# print(df['AGE'].head())
-
 train_set, test_set = train_test_split(df, test_size=0.1, random_state=42)
-
-# consider stratified samples using StraifiedShuffleSplit?
-
 train_y, test_y = train_set['CLAIM_FLAG'], test_set['CLAIM_FLAG']
 train_X = train_set.drop(['CLAIM_FLAG'], axis=1)
 test_X = test_set.drop(['CLAIM_FLAG'], axis=1)
+
 
 def get_cat_indicies(df):
     cat_indicies = []
@@ -54,6 +55,8 @@ def get_cat_indicies(df):
         if df[feature].dtype == 'uint8':
             cat_indicies.append(index)
     return cat_indicies
+
+
 cat_indicies = get_cat_indicies(train_X)
 
 
@@ -72,8 +75,8 @@ us_train_X, us_train_y = ros.fit_resample(train_X, train_y)
 # non_claim_count = 0
 # for entry in os_train_y:
 #     if entry == 1:
-#         claim_count += 1 
-#     else: 
+#         claim_count += 1
+#     else:
 #         non_claim_count += 1
 # print(claim_count)
 # print(non_claim_count)
@@ -129,10 +132,11 @@ tree = DecisionTreeClassifier()
 rfc = RandomForestClassifier()
 ada = AdaBoostClassifier()
 
-clfs = [svc, sgd, gnb, knc, mlp, rfc, ada] 
+clfs = [svc, sgd, gnb, knc, mlp, rfc, ada]
 #  mlp, rfc, ada
 
-def OOS_test(clfs:list, data_X, data_y):
+
+def OOS_test(clfs: list, data_X, data_y):
     for clf in clfs:
         clf.fit(data_X, data_y)
         correct = 0
@@ -158,7 +162,8 @@ def OOS_test(clfs:list, data_X, data_y):
 Claims prediction accuracy: {round(claims_predicted / claims * 100, 2)}%\n\
 Non-claims prediction accuracy: {round(non_claims_predicted / non_claims * 100, 2)}%\n')
 
-def cross_validate(clfs:list, data_X, data_y):
+
+def cross_validate(clfs: list, data_X, data_y):
     for clf in clfs:
         scores = cross_val_score(clf, data_X, data_y)
         log_it(f'{clf} scored:')
@@ -166,7 +171,7 @@ def cross_validate(clfs:list, data_X, data_y):
 
 
 if __name__ == '__main__':
-    # print(train_X)
+
     # # cross_validate(clfs, os_train_X, os_train_y)
     # # cross_validate(clfs, train_X, train_y)
 
@@ -181,7 +186,9 @@ if __name__ == '__main__':
 
     log_it(f'\n\n{"*"*20} "SMOTENC Sampled Data" {"*"*20}\n')
     OOS_test(clfs, smote_train_X, smote_train_y)
-    
+
     pass
 
-# 5, 7, 8 
+# 5, 7, 8
+
+

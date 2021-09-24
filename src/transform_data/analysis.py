@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 # Import df to analyse:
-from feature_engineer import df
+from prepare_data import df
 
 # General distributions:
 
@@ -16,7 +16,6 @@ def show_gen_distributions(df):
     df.hist(bins=50)
     plt.show()
 # show_gen_distributions(df)
-
 
 # Check Correlations:
 

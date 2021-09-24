@@ -2,3 +2,4 @@
 /data
 /.vscode
 log.txt
+/.mypy_cache
