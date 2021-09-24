@@ -1,12 +1,13 @@
-from imblearn import over_sampling
+from numpy import dtype
 import pandas as pd
-from pandas.core.frame import DataFrame
+from sklearn.utils.validation import check_array
 from feature_engineer import df
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.utils import shuffle
 
-from imblearn.over_sampling import RandomOverSampler
+from imblearn.over_sampling import RandomOverSampler, SMOTENC
+from imblearn.under_sampling import RandomUnderSampler
 
 # model imports:
 from sklearn import svm
@@ -21,6 +22,10 @@ from sklearn.neural_network import MLPClassifier
 
 
 scaler = MinMaxScaler()
+
+def log_it(str):
+    with open('log.txt', 'a') as log:
+        log.write(str)
 
 def scale_data(df, scale:list):
     for to_scale in scale:
@@ -43,8 +48,22 @@ train_y, test_y = train_set['CLAIM_FLAG'], test_set['CLAIM_FLAG']
 train_X = train_set.drop(['CLAIM_FLAG'], axis=1)
 test_X = test_set.drop(['CLAIM_FLAG'], axis=1)
 
+def get_cat_indicies(df):
+    cat_indicies = []
+    for index, feature in enumerate(df.columns):
+        if df[feature].dtype == 'uint8':
+            cat_indicies.append(index)
+    return cat_indicies
+cat_indicies = get_cat_indicies(train_X)
+
+
+rus = RandomUnderSampler()
 ros = RandomOverSampler()
+smotenc = SMOTENC(categorical_features=cat_indicies)
+
+smote_train_X, smote_train_y = smotenc.fit_resample(train_X, train_y)
 os_train_X, os_train_y = ros.fit_resample(train_X, train_y)
+us_train_X, us_train_y = ros.fit_resample(train_X, train_y)
 
 # print(len(train_y))
 # print(train_y.head())
@@ -104,49 +123,65 @@ svc = svm.SVC()
 sgd = SGDClassifier()
 knc = KNeighborsClassifier()
 mlp = MLPClassifier()
+gnb = GaussianNB()
 gap = GaussianProcessClassifier()
 tree = DecisionTreeClassifier()
 rfc = RandomForestClassifier()
 ada = AdaBoostClassifier()
 
-clfs = [svc, sgd, knc, mlp, gap, tree, rfc, ada]
+clfs = [svc, sgd, gnb, knc, mlp, rfc, ada] 
+#  mlp, rfc, ada
 
 def OOS_test(clfs:list, data_X, data_y):
     for clf in clfs:
         clf.fit(data_X, data_y)
         correct = 0
+        claims = 0
+        non_claims = 0
         non_claims_predicted = 0
         claims_predicted = 0
-        for x in range(1000):
+        for x in range(len(list(test_y))):
             prediction = clf.predict([test_X.to_numpy()[x]])
-            # print(f'predicted:{prediction}')
             label = list(test_y)[x]
-            # print(f'label:{label}')
-            if int(prediction) == int(label):
-                correct += 1
-            if int(prediction) == 0:
-                non_claims_predicted += 1
+            if label == 1:
+                claims += 1
             else:
+                non_claims += 1
+            if int(prediction) == label:
+                correct += 1
+            if int(prediction) == 0 and label == 0:
+                non_claims_predicted += 1
+            elif int(prediction) == 1 and label == 1:
                 claims_predicted += 1
-        print(clf)
-        print(f'\nOOS accuracy: {correct/1000*100}%\n\
-    claims predicted:{claims_predicted}\n\
-    non-claims predicted:{non_claims_predicted}\n')
-        print(f'claim/non-claim prediction ratio: {non_claims_predicted/claims_predicted}\n')
+        log_it(f'\n{repr(clf)}')
+        log_it(f'\nOOS total accuracy: {round(correct/len(list(test_y))*100, 2)}%\n\
+Claims prediction accuracy: {round(claims_predicted / claims * 100, 2)}%\n\
+Non-claims prediction accuracy: {round(non_claims_predicted / non_claims * 100, 2)}%\n')
 
 def cross_validate(clfs:list, data_X, data_y):
     for clf in clfs:
         scores = cross_val_score(clf, data_X, data_y)
-        print(f'{clf} scored:')
-        print(scores, '\n')
+        log_it(f'{clf} scored:')
+        log_it(scores, '\n')
+
 
 if __name__ == '__main__':
+    # print(train_X)
+    # # cross_validate(clfs, os_train_X, os_train_y)
+    # # cross_validate(clfs, train_X, train_y)
 
-    cross_validate(clfs, train_X, train_y)
+    log_it(f'\n\n{"*"*20} "Unbalanced Data" {"*"*20}\n')
     OOS_test(clfs, train_X, train_y)
 
-    print('*********************')
-
-    cross_validate(clfs, os_train_X, os_train_y)
+    log_it(f'\n\n{"*"*20} "Random Over Sampled Data" {"*"*20}\n')
     OOS_test(clfs, os_train_X, os_train_y)
 
+    log_it(f'\n\n{"*"*20} "Random Under Sampled Data" {"*"*20}\n')
+    OOS_test(clfs, us_train_X, us_train_y)
+
+    log_it(f'\n\n{"*"*20} "SMOTENC Sampled Data" {"*"*20}\n')
+    OOS_test(clfs, smote_train_X, smote_train_y)
+    
+    pass
+
+# 5, 7, 8 

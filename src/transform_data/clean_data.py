@@ -1,7 +1,6 @@
-from numpy import dtype
+from numpy import dtype, int64, uint8
 import pandas as pd
 from pathlib import Path
-from scipy import sparse
 from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 
@@ -51,8 +50,10 @@ clean_df['OCCUPATION'] = clean_df['OCCUPATION'].fillna('Unknown')
 clean_df = clean_df.drop('CLM_AMT', axis=1) # this is a label so will give the game away!
 clean_df = clean_df.drop('BIRTH', axis=1) # 'AGE' covers this feature sufficiently
 clean_df = clean_df.drop('RED_CAR', axis=1) # No correlation between this feature and claims
+clean_df = clean_df.drop('ID', axis=1) # No correlation between this feature and claims
+# clean_df = clean_df.drop('HOME_PER_BLUE*', axis=1) # No correlation between this feature and claims
 
-clean_df = clean_df.set_index('ID')
+# clean_df = clean_df.set_index('ID')
 
 # Deal with categorical features:
 '''NOTE:Consider ordinal encoding for Education?'''
@@ -64,15 +65,22 @@ def cat_to_1hot(df, *args):
     return df
 
 clean_df = cat_to_1hot( clean_df,
-                    'PARENT1', 
-                    'MSTATUS', 
-                    'GENDER', 
                     'EDUCATION', 
                     'OCCUPATION', 
                     'CAR_USE',
-                    'CAR_TYPE',
-                    'REVOKED',
-                    'URBANICITY')
+                    'CAR_TYPE')
+
+enc = OrdinalEncoder(dtype=uint8)
+
+def make_ordinal(df, *args):
+    for arg in args:
+        arr_2d = [[x] for x in df[arg]]
+        df[arg] = enc.fit_transform(arr_2d)
+    return df
+
+clean_df = make_ordinal(clean_df, 'GENDER', 'PARENT1', 'MSTATUS', 'REVOKED', 'URBANICITY')
+
+
 
 # arr = [[x] for x in clean_df['OCCUPATION']]
 # arr_1hot = cat_encoder.fit_transform(arr)
@@ -115,13 +123,6 @@ if __name__ == '__main__':
     # print(clean_df.head())
     # print(clean_df['URBANICITY'].unique())
     pass
-
-
-
-
-
-
-
 
 
 
