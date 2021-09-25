@@ -7,23 +7,12 @@ from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import RandomOverSampler, SMOTENC
 from imblearn.under_sampling import RandomUnderSampler
 
-from sklearn import svm
-from sklearn import tree
-from sklearn.linear_model import SGDClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.neural_network import MLPClassifier
-
 
 # Import and convert data to df:
 df = pd.read_csv('./data/car_insurance_claim.csv')
 
 
 # Data cleaining functions:
-
 
 def features_to_dtype(df: pd.DataFrame, *args: str, to_type='int64') -> pd.DataFrame:
     """Converts columns in df to specified dype, default int64. Returns converted df."""
@@ -91,14 +80,6 @@ def scale_data(df: pd.DataFrame, scale: list) -> pd.DataFrame:
         df[to_scale] = scaler.fit_transform([[x] for x in df[to_scale]])
     return df
 
-def get_cat_indicies(df:pd.DataFrame) -> list:
-    cat_indicies = []
-    for index, feature in enumerate(df.columns):
-        if len(df[feature].unique()) > 2:
-            cat_indicies.append(index)
-    return cat_indicies
-
-
 """
 NOTE: There are 600+ nans in 'OCCUPATION' but all have an income, so not unemployed,
 could be retired but average age doesnt suggest this,
@@ -155,8 +136,10 @@ test_X = test_set.drop(['CLAIM_FLAG'], axis=1)
 
 rus = RandomUnderSampler()
 ros = RandomOverSampler()
-# (Re cat features, all are binary, so if only 2 values then they're categorical)
-smotenc = SMOTENC(categorical_features=get_cat_indicies(train_X))
+# (Re cat features, all are now binary, so if only 2 values then they're categorical)
+cat_features = [index for index, feature in enumerate(train_X.columns) if len(train_X[feature].unique()) == 2]
+
+smotenc = SMOTENC(categorical_features=cat_features)
 
 smote_train_X, smote_train_y = smotenc.fit_resample(train_X, train_y)
 os_train_X, os_train_y = ros.fit_resample(train_X, train_y)
