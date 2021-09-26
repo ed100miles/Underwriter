@@ -1,0 +1,2 @@
+(SGDClassifier(), {'loss': ['hinge', 'log', 'modified_huber', 'squared_hinge', 'perceptron'], 'penalty': ['l1', 'l2', 'elasticnet'], 'alpha': [0.0001, 5e-05, 0.00015], 'l1_ratio': [0.1, 0.15, 0.2], 'learning_rate': ['optimal', 'invscaling']}):
+eta0 must be > 0

@@ -6,7 +6,6 @@ from sklearn.model_selection import cross_val_score, GridSearchCV, HalvingGridSe
 from sklearn import svm
 from sklearn.linear_model import SGDClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
@@ -108,11 +107,14 @@ def cross_validate(clfs: list, data_X, data_y):
 
 if __name__ == '__main__':
     for classifier in clfs:
-        clf, param_grid = classifier
-        search = HalvingGridSearchCV(clf, param_grid).fit(
-            smote_train_X, smote_train_y)
-        print(search.best_estimator_)
-        OOS_test([search.best_estimator_], test_X, test_y, param_grid)
+        try:
+            clf, param_grid = classifier
+            search = HalvingGridSearchCV(clf, param_grid).fit(
+                smote_train_X, smote_train_y)
+            print(search.best_estimator_)
+            OOS_test([search.best_estimator_], smote_train_X, smote_train_y, param_grid)
+        except Exception as e:
+            log_it('error_log.txt', f'{classifier}:\n{e}')
 
     # # cross_validate(clfs, os_train_X, os_train_y)
     # # cross_validate(clfs, train_X, train_y)
@@ -129,3 +131,4 @@ if __name__ == '__main__':
     # log_it('log.txt', f'\n\n{"*"*20} "SMOTENC Sampled Data" {"*"*20}\n')
     # OOS_test(clfs, smote_train_X, smote_train_y)
     pass
+
