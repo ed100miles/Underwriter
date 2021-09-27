@@ -1,7 +1,10 @@
 import pickle
+import pandas as pd
+from datetime import datetime
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import cross_val_score, GridSearchCV, HalvingGridSearchCV
 from typing import List
+
 # model imports:
 from sklearn import svm
 from sklearn.linear_model import SGDClassifier
@@ -38,7 +41,7 @@ sgd = (SGDClassifier(), {
     'learning_rate': ['optimal', 'invscaling']
 })
 
-knc = (KNeighborsClassifier(),{
+knc = (KNeighborsClassifier(), {
     'n_neighbors': [3, 5, 8],
     'weights': ['uniform', 'distance'],
     'leaf_size': [25, 30, 35],
@@ -58,13 +61,13 @@ gnb = (GaussianNB(), {
 })
 
 
-d_tree = (DecisionTreeClassifier(),{
+d_tree = (DecisionTreeClassifier(), {
     'criterion': ['gini', 'entropy'],
     'splitter': ['best', 'random'],
     'max_features': [None, 'auto', 'sqrt', 'log2']
 })
 
-rfc = (RandomForestClassifier(),{
+rfc = (RandomForestClassifier(), {
     'criterion': ['gini', 'entropy'],
     'max_features': ['auto', 'sqrt', 'log2'],
     'class_weight': [None, 'balanced']
@@ -75,9 +78,7 @@ ada = (AdaBoostClassifier(), {
     'learning_rate': [0.5, 1.0, 1.5]
 })
 
-clfs = [svc
-#, sgd, knc, mlp, gnb, d_tree, rfc, ada
-]
+clfs = [svc, sgd, knc, mlp, gnb, d_tree, rfc, ada]
 #  mlp, rfc, ada
 
 
@@ -86,10 +87,16 @@ def log_it(filename: str, log: str) -> None:
         log_file.write(log)
 
 
-def OOS_test(clfs: list, data_X, data_y, tested_params:str):
+def log_csv(filename: str, log: str) -> None:
+    with open(filename, 'a') as log_csv:
+        log_csv.write(log)
+
+
+def OOS_test(clfs: list, data_X, data_y, tested_params: str) -> tuple:
     for clf in clfs:
         clf.fit(data_X, data_y)
         correct = claims = non_claims = non_claims_predicted = claims_predicted = 0
+
         for x in range(len(list(test_y))):
             prediction = clf.predict([test_X.to_numpy()[x]])
             label = list(test_y)[x]
@@ -103,11 +110,18 @@ def OOS_test(clfs: list, data_X, data_y, tested_params:str):
                 non_claims_predicted += 1
             elif int(prediction) == 1 and label == 1:
                 claims_predicted += 1
-        log_it('log.txt', f'\n{repr(clf)}\n\
+
+        total_acc = round(correct/len(list(test_y))*100, 2)
+        claims_acc = round(claims_predicted / claims * 100, 2)
+        non_claims_acc = round(non_claims_predicted / non_claims * 100, 2)
+
+        log_it('./data/log.txt', f'\n{repr(clf)}\n\
 Tested Parameters: {tested_params}\n\
 OOS total accuracy: {round(correct/len(list(test_y))*100, 2)}%\n\
 Claims prediction accuracy: {round(claims_predicted / claims * 100, 2)}%\n\
 Non-claims prediction accuracy: {round(non_claims_predicted / non_claims * 100, 2)}%\n')
+    
+    return (total_acc, claims_acc, non_claims_acc)
 
 
 def cross_validate(clfs: list, data_X, data_y):
@@ -115,54 +129,42 @@ def cross_validate(clfs: list, data_X, data_y):
         scores = cross_val_score(clf, data_X, data_y)
         log_it(f'{clf} scored:\n{scores}\n')
 
-def test_classifiers(clfs: list, input_data_sets:List[tuple], input_data_names:List[str]):
+
+def test_classifiers(clfs: list, input_data_sets: List[tuple], input_data_names: List[str]) -> None:
+    log_it(
+        './data/log.txt', f'{"*" * 10}     Started New Classifiers Test @ {pd.to_datetime(datetime.now()).round("1s")}     {"*" * 10}\n\n')
     data = zip(input_data_sets, input_data_names)
     for data_Xy, data_name in data:
         X, y = data_Xy
         for classifier in clfs:
             clf, param_grid = classifier
-            log_it('log.txt', f'{"*"*10}{" "*5}{clf}{" "*5}{"*"*10}{" "*5}{data_name}{" "*5}{"*"*10}')
+            log_it(
+                './data/log.txt', f'\n{"*" * 10}     {clf}     {"*" * 10}      {data_name}     {"*" * 10}\n')
             try:
-                search = HalvingGridSearchCV(clf, param_grid).fit(X, y)
+                search = HalvingGridSearchCV(
+                    clf, param_grid, n_jobs=3).fit(X, y)
                 print(search.best_estimator_)
-                OOS_test([search.best_estimator_], X, y, param_grid)
+                total_acc, claims_acc, non_claims_acc = OOS_test(
+                    [search.best_estimator_], X, y, param_grid)
+                log_csv('./data/test_classifier.csv',
+                    f'{clf},{data_name},{total_acc},{claims_acc},{non_claims_acc},{str(search.best_estimator_).replace(",", "|")},{str(param_grid).replace(",", "|")}\n')
             except Exception as e:
-                log_it('error_log.txt', f'{classifier}:\n{e}')
+                log_it('./data/error_log.txt', f'{classifier}:\n{e}')
 
 
 if __name__ == '__main__':
-    test_classifiers(clfs, [train_data, smote_train_data, os_train_data, us_train_data],
-    ['train_data', 'smote_train_data', 'os_train_data', 'us_train_data'])
+    test_classifiers(
+        clfs,
+        [
+            train_data,
+            smote_train_data,
+            os_train_data,
+            us_train_data
+        ], [
+            'Unbalanced_train_data',
+            'Smote_balanced_train_data',
+            'Random_over_sampled',
+            'Random_under_sampled'
+        ])
 
-
-
-
-    # for classifier in clfs:
-    #     for data_type in data_sets:
-    #         try:
-    #             clf, param_grid = classifier
-    #             search = HalvingGridSearchCV(clf, param_grid).fit(
-    #                 smote_train_X, smote_train_y)
-    #             print(search.best_estimator_)
-    #             OOS_test([search.best_estimator_], smote_train_X, smote_train_y, param_grid)
-    #         except Exception as e:
-    #             log_it('error_log.txt', f'{classifier}:\n{e}')
-
-
-
-    # # cross_validate(clfs, os_train_X, os_train_y)
-    # # cross_validate(clfs, train_X, train_y)
-
-    # log_it('log.txt', f'\n\n{"*"*20} "Unbalanced Data" {"*"*20}\n')
-    # OOS_test(clfs, train_X, train_y)
-
-    # log_it('log.txt', f'\n\n{"*"*20} "Random Over Sampled Data" {"*"*20}\n')
-    # OOS_test(clfs, os_train_X, os_train_y)
-
-    # log_it('log.txt', f'\n\n{"*"*20} "Random Under Sampled Data" {"*"*20}\n')
-    # OOS_test(clfs, us_train_X, us_train_y)
-
-    # log_it('log.txt', f'\n\n{"*"*20} "SMOTENC Sampled Data" {"*"*20}\n')
-    # OOS_test(clfs, smote_train_X, smote_train_y)
     pass
-
