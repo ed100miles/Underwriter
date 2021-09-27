@@ -1,7 +1,7 @@
-from prepare_data import test_X, test_y, train_X, train_y, smote_train_X, smote_train_y, os_train_X, os_train_y, us_train_X, us_train_y
+import pickle
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import cross_val_score, GridSearchCV, HalvingGridSearchCV
-
+from typing import List
 # model imports:
 from sklearn import svm
 from sklearn.linear_model import SGDClassifier
@@ -10,6 +10,17 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neural_network import MLPClassifier
+
+with open('./data/pickles/data_sets', 'rb') as data_sets_pickle:
+    data_sets = pickle.load(data_sets_pickle)
+
+train_data, test_data, smote_train_data, os_train_data, us_train_data = data_sets
+
+smote_train_X, smote_train_y = smote_train_data
+os_train_X, os_train_y = os_train_data
+us_train_X, us_train_y = us_train_data
+train_X, train_y = train_data
+test_X, test_y = test_data
 
 svc = (svm.SVC(), {
     'C': [20.0, 22.5, 25.0, 27.5],
@@ -46,8 +57,6 @@ gnb = (GaussianNB(), {
     'var_smoothing': [0.0000000001, 0.00000000005, 0.00000000015]
 })
 
-# gap = (GaussianProcessClassifier(), {
-# })
 
 d_tree = (DecisionTreeClassifier(),{
     'criterion': ['gini', 'entropy'],
@@ -66,7 +75,9 @@ ada = (AdaBoostClassifier(), {
     'learning_rate': [0.5, 1.0, 1.5]
 })
 
-clfs = [svc, sgd, knc, mlp, gnb, d_tree, rfc, ada]
+clfs = [svc
+#, sgd, knc, mlp, gnb, d_tree, rfc, ada
+]
 #  mlp, rfc, ada
 
 
@@ -104,17 +115,40 @@ def cross_validate(clfs: list, data_X, data_y):
         scores = cross_val_score(clf, data_X, data_y)
         log_it(f'{clf} scored:\n{scores}\n')
 
+def test_classifiers(clfs: list, input_data_sets:List[tuple], input_data_names:List[str]):
+    data = zip(input_data_sets, input_data_names)
+    for data_Xy, data_name in data:
+        X, y = data_Xy
+        for classifier in clfs:
+            clf, param_grid = classifier
+            log_it('log.txt', f'{"*"*10}{" "*5}{clf}{" "*5}{"*"*10}{" "*5}{data_name}{" "*5}{"*"*10}')
+            try:
+                search = HalvingGridSearchCV(clf, param_grid).fit(X, y)
+                print(search.best_estimator_)
+                OOS_test([search.best_estimator_], X, y, param_grid)
+            except Exception as e:
+                log_it('error_log.txt', f'{classifier}:\n{e}')
+
 
 if __name__ == '__main__':
-    for classifier in clfs:
-        try:
-            clf, param_grid = classifier
-            search = HalvingGridSearchCV(clf, param_grid).fit(
-                smote_train_X, smote_train_y)
-            print(search.best_estimator_)
-            OOS_test([search.best_estimator_], smote_train_X, smote_train_y, param_grid)
-        except Exception as e:
-            log_it('error_log.txt', f'{classifier}:\n{e}')
+    test_classifiers(clfs, [train_data, smote_train_data, os_train_data, us_train_data],
+    ['train_data', 'smote_train_data', 'os_train_data', 'us_train_data'])
+
+
+
+
+    # for classifier in clfs:
+    #     for data_type in data_sets:
+    #         try:
+    #             clf, param_grid = classifier
+    #             search = HalvingGridSearchCV(clf, param_grid).fit(
+    #                 smote_train_X, smote_train_y)
+    #             print(search.best_estimator_)
+    #             OOS_test([search.best_estimator_], smote_train_X, smote_train_y, param_grid)
+    #         except Exception as e:
+    #             log_it('error_log.txt', f'{classifier}:\n{e}')
+
+
 
     # # cross_validate(clfs, os_train_X, os_train_y)
     # # cross_validate(clfs, train_X, train_y)

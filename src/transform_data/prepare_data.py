@@ -1,7 +1,7 @@
 from typing import List
 import pandas as pd
 import sys
-
+import pickle
 from sklearn.preprocessing import OrdinalEncoder, MinMaxScaler
 from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import RandomOverSampler, SMOTENC
@@ -132,6 +132,9 @@ train_y, test_y = train_set['CLAIM_FLAG'], test_set['CLAIM_FLAG']
 train_X = train_set.drop(['CLAIM_FLAG'], axis=1)
 test_X = test_set.drop(['CLAIM_FLAG'], axis=1)
 
+train_data = (train_X, train_y)
+test_data = (test_X, test_y)
+
 # Balance data:
 
 rus = RandomUnderSampler()
@@ -141,7 +144,12 @@ cat_features = [index for index, feature in enumerate(train_X.columns) if len(tr
 
 smotenc = SMOTENC(categorical_features=cat_features)
 
-smote_train_X, smote_train_y = smotenc.fit_resample(train_X, train_y)
-os_train_X, os_train_y = ros.fit_resample(train_X, train_y)
-us_train_X, us_train_y = ros.fit_resample(train_X, train_y)
+smote_train_data = smotenc.fit_resample(train_X, train_y)
+os_train_data = ros.fit_resample(train_X, train_y)
+us_train_data = ros.fit_resample(train_X, train_y)
+
+data_sets = [train_data, test_data, smote_train_data, os_train_data, us_train_data]
+
+with open('./data/pickles/data_sets', 'wb') as pickle_out:
+    pickle.dump(data_sets, pickle_out)
 
