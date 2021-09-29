@@ -6,13 +6,15 @@ from sklearn.model_selection import cross_val_score, GridSearchCV, HalvingGridSe
 from typing import List
 
 # model imports:
-from sklearn import svm
-from sklearn.linear_model import SGDClassifier
+from sklearn.svm import SVC, NuSVC, LinearSVC
+from sklearn.linear_model import SGDClassifier, LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
-from sklearn.naive_bayes import GaussianNB
+from sklearn.naive_bayes import GaussianNB, BernoulliNB, MultinomialNB
 from sklearn.neural_network import MLPClassifier
+from sklearn.base import clone
+from sklearn.utils.validation import check_is_fitted
 
 with open('./data/pickles/data_sets', 'rb') as data_sets_pickle:
     data_sets = pickle.load(data_sets_pickle)
@@ -25,7 +27,7 @@ us_train_X, us_train_y = us_train_data
 train_X, train_y = train_data
 test_X, test_y = test_data
 
-svc = (svm.SVC(), {
+svc = (SVC(), {
     'C': [20.0, 22.5, 25.0, 27.5],
     'kernel': ['linear', 'rbf', 'poly', 'sigmoid'],
     'degree': [2, 3, 4],  # polly kernel only param
@@ -33,12 +35,28 @@ svc = (svm.SVC(), {
     'coef0': [0.0, 0.5, 1.0]
 })
 
+nusvc = (NuSVC(), {
+    'nu': [0.25, 0.5, 0.75, 1], 
+    'kernel': ['linear', 'rbf', 'poly', 'sigmoid'],
+    'degree': [2, 3, 4],  # polly kernel only param
+    'gamma': ['scale', 'auto'],  # rbf only param
+    'coef0': [0.0, 0.5, 1.0]
+})
+
+lsvc = (LinearSVC(),{
+    'C': [0.5,1,1.5,2],
+    'loss':['hinge', 'squared_hinge'],
+    'dual': [True, False]
+})
+
 sgd = (SGDClassifier(), {
     'loss': ['hinge', 'log', 'modified_huber', 'squared_hinge', 'perceptron'],
-    'penalty': ['l1', 'l2', 'elasticnet'],
-    'alpha': [0.0001, 0.00005, 0.00015],
+    'penalty': ['l1', 'l2', 'elasticnet'], 
+    'alpha': [0.0001, 0.0002, 0.0003],
     'l1_ratio': [0.1, 0.15, 0.2],
-    'learning_rate': ['optimal', 'invscaling']
+    'learning_rate': ['optimal', 'invscaling'],
+    'eta0': [0.01, 0.1, 1],
+    'max_iter': [1000000]
 })
 
 knc = (KNeighborsClassifier(), {
@@ -48,18 +66,34 @@ knc = (KNeighborsClassifier(), {
     'p': [1, 2, 3],
 })
 
+
 mlp = (MLPClassifier(), {
     'activation': ['identity', 'logistic', 'tanh', 'relu'],
     'solver': ['lbfgs', 'sgd', 'adam'],
     'alpha': [0.00005, 0.0001, 0.00015],
     'learning_rate': ['constant', 'invscaling', 'adaptive'],
-    'power_t': [0.25, 0.5, 0.75]
-})
+    'power_t': [0.25, 0.5, 0.75],
+    'max_iter': [10000]
+    })
 
 gnb = (GaussianNB(), {
     'var_smoothing': [0.0000000001, 0.00000000005, 0.00000000015]
 })
 
+bnb = (BernoulliNB(),{
+    'alpha': [0,0.5,1,1.5,2,2.5],
+})
+
+mnb = (MultinomialNB(),{
+    'alpha': [0,0.5,1,1.5,2,2.5],
+})
+
+logr = (LogisticRegression(), {
+    'C': [1.25, 1.5, 2],
+    'intercept_scaling': [0.5, 0.75, 1],
+    # 'solver': ['lbfgs', 'newton-cg', 'liblinear', 'sag', 'saga'],
+    'max_iter': [100000]
+})
 
 d_tree = (DecisionTreeClassifier(), {
     'criterion': ['gini', 'entropy'],
@@ -78,8 +112,6 @@ ada = (AdaBoostClassifier(), {
     'learning_rate': [0.5, 1.0, 1.5]
 })
 
-clfs = [svc, sgd, knc, mlp, gnb, d_tree, rfc, ada]
-#  mlp, rfc, ada
 
 
 def log_it(filename: str, log: str) -> None:
@@ -93,10 +125,13 @@ def log_csv(filename: str, log: str) -> None:
 
 
 def OOS_test(clfs: list, data_X, data_y, tested_params: str) -> tuple:
-    for clf in clfs:
+    for clf in clfs:            
+        try:
+            check_is_fitted(clf)
+        except Exception as nfe:
+            print(f'{clf} not yet fitted')
         clf.fit(data_X, data_y)
         correct = claims = non_claims = non_claims_predicted = claims_predicted = 0
-
         for x in range(len(list(test_y))):
             prediction = clf.predict([test_X.to_numpy()[x]])
             label = list(test_y)[x]
@@ -138,6 +173,7 @@ def test_classifiers(clfs: list, input_data_sets: List[tuple], input_data_names:
         X, y = data_Xy
         for classifier in clfs:
             clf, param_grid = classifier
+
             log_it(
                 './data/log.txt', f'\n{"*" * 10}     {clf}     {"*" * 10}      {data_name}     {"*" * 10}\n')
             try:
@@ -153,6 +189,9 @@ def test_classifiers(clfs: list, input_data_sets: List[tuple], input_data_names:
 
 
 if __name__ == '__main__':
+
+    clfs = [ bnb, mnb, ] # svc, nusvc, lsvc, sgd, knc, mlp, gnb, || logr, d_tree, rfc, ada
+
     test_classifiers(
         clfs,
         [
@@ -164,7 +203,7 @@ if __name__ == '__main__':
             'Unbalanced_train_data',
             'Smote_balanced_train_data',
             'Random_over_sampled',
-            'Random_under_sampled'
+            'Random_under_sampled',
         ])
 
     pass

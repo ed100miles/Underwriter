@@ -155,5 +155,6 @@ data_sets = [train_data, test_data, smote_train_data, os_train_data, us_train_da
 
 smote_train_X, _ = smote_train_data
 
-with open('./data/smote_train_X', 'w') as out_file:
-    smote_train_X.to_csv(out_file)
+# with open('./data/smote_train_X.csv', 'w') as out_file:
+#     smote_train_X.to_csv(out_file)
+
