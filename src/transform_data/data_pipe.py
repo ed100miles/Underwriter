@@ -106,6 +106,7 @@ class MakeOrdinal(BaseEstimator, TransformerMixin):
         for feature in self.feats_to_ordinal:
             arr_2d = [[x] for x in df[feature]]
             df[feature] = self.ordinal_enc.fit_transform(arr_2d)
+        
         return df
 
 
@@ -133,13 +134,18 @@ class Scale(BaseEstimator, TransformerMixin):
     def __init__(self, feats_to_scale: List[str]):
         self.feats_to_scale = feats_to_scale
         self.scaler = MinMaxScaler()
+        self.scalers = {}
 
-    def fit(self, X, y=None):
+    def fit(self, df:pd.DataFrame, y=None):
+        self.scalers = {} # auto reset scalers if fit called
+        for feature in self.feats_to_scale:
+            self.scalers[feature] = MinMaxScaler()
+            self.scalers[feature].fit([[x] for x in df[feature]])
         return self
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         for feature in self.feats_to_scale:
-            df[feature] = self.scaler.fit_transform([[x] for x in df[feature]])
+            df[feature] = self.scalers[feature].transform([[x] for x in df[feature]])
         return df
 
 
@@ -181,7 +187,7 @@ if __name__ == '__main__':
     dollar_fields = ['INCOME', 'HOME_VAL', 'BLUEBOOK', 'OLDCLAIM', 'CLM_AMT']
     drop_features = ['CLM_AMT', 'BIRTH', 'RED_CAR', 'ID', 'index']
     features_to_1hot = ['EDUCATION', 'OCCUPATION', 'CAR_USE', 'CAR_TYPE']
-    nans_to_mean = ['AGE', 'CAR_AGE', 'YOJ']
+    nans_to_mean = ['AGE', 'CAR_AGE', 'YOJ'] + dollar_fields
     features_to_ordinal = ['GENDER', 'PARENT1',
                            'MSTATUS', 'REVOKED', 'URBANICITY']
 
@@ -189,10 +195,11 @@ if __name__ == '__main__':
         train_set[column].unique()) > 2]  # gets non-binary features
 
     features_to_scale = list(set(non_binary_features) -
-                             set(drop_features + features_to_1hot))
+                             set(drop_features + features_to_1hot + ['index']))
 
     data_pipeline = Pipeline([
         ('dollar_transform', DollarTranformer(dollar_fields)),
+        ('feat_to_mean', NaN2Mean(nans_to_mean)),
         ('drop_features', DropFeatures(drop_features)),
         ('feat_to_1hot', Make1Hot(features_to_1hot)),
         ('feat_to_ordinal', MakeOrdinal(features_to_ordinal)),
