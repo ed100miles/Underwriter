@@ -15,7 +15,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 
 class DollarTranformer(BaseEstimator, TransformerMixin):
     def __init__(self, dollar_features: List[str], nans_to_mean: bool = True,
-                 features_to_dtype: str = 'int64'):
+                 features_to_dtype: str = 'float64'):
 
         self.dollar_features = dollar_features
         self.nans_to_mean = nans_to_mean
@@ -33,6 +33,19 @@ class DollarTranformer(BaseEstimator, TransformerMixin):
                     dollar_val = int(entry.replace(',', '').replace('$', ''))
                     df.at[index, dollar_field] = dollar_val
 
+            '''Convert to specified dtype'''
+            try:
+                df[dollar_field] = df[dollar_field].astype(
+                    self.features_to_dtype)
+            except TypeError as e:
+                print(
+                    f'TypeError:  {e}\nCannot convert values of "{df[dollar_field].dtype}" type in df[{dollar_field}] to {self.features_to_dtype}.')
+                sys.exit()
+            except ValueError as e:
+                print(
+                    f'ValueError: Dollar() {e}\nCannot convert values of "{df[dollar_field].dtype}" type in df[{dollar_field}] to {self.features_to_dtype}.')
+                sys.exit()
+
             '''Convert nans in field mean'''
             if self.nans_to_mean:
                 try:
@@ -43,18 +56,6 @@ class DollarTranformer(BaseEstimator, TransformerMixin):
                         f'{e}\nTypeError: Could not calculate mean of "{df[dollar_field].dtype}" type in "{dollar_field}". Try converting to a number type first.')
                     sys.exit()
 
-            '''Convert to specified dtype'''
-            try:
-                df[dollar_field] = df[dollar_field].astype(
-                    self.features_to_dtype)
-            except TypeError as e:
-                print(
-                    f'TypeError: {e}\nCannot convert values of "{df[dollar_field].dtype}" type in df[{dollar_field}] to {self.features_to_dtype}.')
-                sys.exit()
-            except ValueError as e:
-                print(
-                    f'TypeError: {e}\nCannot convert values of "{df[dollar_field].dtype}" type in df[{dollar_field}] to {self.features_to_dtype}.')
-                sys.exit()
         return df
 
 
@@ -112,7 +113,7 @@ class NaN2Mean(BaseEstimator, TransformerMixin):
                 df[feature] = df[feature].fillna(df[feature].mean())
             except TypeError as e:
                 print(
-                    f'{e}\nTypeError: Could not calculate mean of "{df[feature].dtype}" type in "{feature}". Try converting to a number type first.')
+                    f'{e}\nNaN2Mean TypeError: Could not calculate mean of "{df[feature].dtype}" type in "{feature}". Try converting to a number type first.')
                 sys.exit()
         return df
 
@@ -137,20 +138,13 @@ if __name__ == '__main__':
 
     df = pd.read_csv('./data/car_insurance_claim.csv')
 
-    df1 = pd.DataFrame(df.loc[:9000,:])
-    df2 = pd.DataFrame(df.loc[9000:,:])
-
-    # df1.info()
-    # df2.info()
-
-    # print(df1.head())
-    # print(df2.head())
-
+    df1 = pd.DataFrame(df.loc[:9000, :]).reset_index()
+    df2 = pd.DataFrame(df.loc[9000:, :]).reset_index()
 
     dollar_fields = ['INCOME', 'HOME_VAL', 'BLUEBOOK', 'OLDCLAIM', 'CLM_AMT']
     drop_features = ['CLM_AMT', 'BIRTH', 'RED_CAR', 'ID']
     features_to_1hot = ['EDUCATION', 'OCCUPATION', 'CAR_USE', 'CAR_TYPE']
-    nans_to_mean = ['AGE', 'CAR_AGE', 'YOJ']
+    nans_to_mean = ['AGE', 'CAR_AGE', 'YOJ'] + dollar_fields
     features_to_ordinal = ['GENDER', 'PARENT1',
                            'MSTATUS', 'REVOKED', 'URBANICITY']
     non_binary_features = [column for column in df1.columns if len(
@@ -161,14 +155,17 @@ if __name__ == '__main__':
 
     data_pipeline = Pipeline([
         ('dollar_transform', DollarTranformer(dollar_fields)),
+        ('feat_to_mean', NaN2Mean(nans_to_mean)),
         ('drop_features', DropFeatures(drop_features)),
         ('feat_to_1hot', Make1Hot(features_to_1hot)),
         ('feat_to_ordinal', MakeOrdinal(features_to_ordinal)),
-        ('feat_to_mean', NaN2Mean(nans_to_mean)),
         ('feat_scale', Scale(features_to_scale))
     ])
 
-    trans_df = data_pipeline.fit_transform(df1)
-    trans_df = data_pipeline.transform(df2)
+    trans_df1 = data_pipeline.fit_transform(df1)
+    trans_df2 = data_pipeline.transform(df2)
 
-    trans_df.info()
+    trans_df1.info()
+    trans_df2.info()
+
+    print(trans_df1.columns)
