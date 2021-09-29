@@ -150,6 +150,10 @@ us_train_data = ros.fit_resample(train_X, train_y)
 
 data_sets = [train_data, test_data, smote_train_data, os_train_data, us_train_data]
 
-with open('./data/pickles/data_sets', 'wb') as pickle_out:
-    pickle.dump(data_sets, pickle_out)
+# with open('./data/pickles/data_sets', 'wb') as pickle_out:
+#     pickle.dump(data_sets, pickle_out)
 
+smote_train_X, _ = smote_train_data
+
+with open('./data/smote_train_X', 'w') as out_file:
+    smote_train_X.to_csv(out_file)
