@@ -203,7 +203,6 @@ if __name__ == '__main__':
         ('drop_features', DropFeatures(drop_features)),
         ('feat_to_1hot', Make1Hot(features_to_1hot)),
         ('feat_to_ordinal', MakeOrdinal(features_to_ordinal)),
-        ('feat_to_mean', NaN2Mean(nans_to_mean)),
         ('build_feats', FeatureEngineer()),
         ('feat_scale', Scale(features_to_scale))
     ])
