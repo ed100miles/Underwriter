@@ -160,6 +160,7 @@ def test_classifiers(clfs: list, input_data_sets: List[tuple],
 
     for data_Xy, data_name in data:
         X, y = data_Xy
+        
         for classifier in clfs:
             clf, param_grid = classifier
 
@@ -210,5 +211,15 @@ if __name__ == '__main__':
             'Random_over_sampled',
             'Random_under_sampled',
         ])
+
+
+    # AdaBoost selected, pickle trained model:
+
+    # ada = AdaBoostClassifier(learning_rate=0.4, n_estimators=100)
+    # print(OOS_test([ada], us_train_X, us_train_y, 'LR:0.4 | n_est=100'))
+
+    # with open('./data/pickles/models/ada76.pickle', 'wb') as file:
+    #     pickle.dump(ada, file)
+
 
     pass

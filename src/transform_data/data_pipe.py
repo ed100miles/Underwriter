@@ -52,7 +52,7 @@ class DollarTranformer(BaseEstimator, TransformerMixin):
                     f' to {self.features_to_dtype}.')
                 sys.exit()
 
-            '''Convert nans in field mean'''
+            '''Convert nans in field to mean'''
             if self.nans_to_mean:
                 try:
                     df[dollar_field] = df[dollar_field].fillna(
